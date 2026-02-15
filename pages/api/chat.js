@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const systemPrompt = characterPrompts[character] || characterPrompts['boxer'];
 
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
+      'https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2',
       {
         method: 'POST',
         headers: {
@@ -41,6 +41,12 @@ Respond as ${character} in 2-3 sentences for Grade 8 students. [/INST]`,
       }
     );
 
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Hugging Face error:', errorData);
+      throw new Error(`API error: ${response.status}`);
+    }
+
     const data = await response.json();
     const reply = Array.isArray(data) ? data[0].generated_text : data.generated_text;
     
@@ -52,6 +58,7 @@ Respond as ${character} in 2-3 sentences for Grade 8 students. [/INST]`,
     res.status(200).json({ reply: cleanReply });
 
   } catch (error) {
+    console.error('Chatbot error:', error);
     res.status(500).json({ 
       error: 'Sorry, I had trouble responding. Please try again!' 
     });
