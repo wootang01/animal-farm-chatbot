@@ -18,44 +18,34 @@ export default async function handler(req, res) {
 
     const systemPrompt = characterPrompts[character] || characterPrompts['boxer'];
 
-    const response = await fetch(
-      'https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: `<s>[INST] ${systemPrompt}
-
-Student: ${message}
-
-Respond as ${character} in 2-3 sentences for Grade 8 students. [/INST]`,
-          parameters: {
-            max_new_tokens: 150,
-            temperature: 0.7,
-            return_full_text: false
-          }
-        }),
-      }
-    );
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://animal-farm-chatbot.vercel.app',
+        'X-Title': 'Animal Farm Chatbot'
+      },
+      body: JSON.stringify({
+        model: 'google/gemma-2-9b-it:free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        max_tokens: 150
+      })
+    });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Hugging Face error:', errorData);
-      throw new Error(`API error: ${response.status}`);
+      const error = await response.text();
+      console.error('OpenRouter error:', error);
+      throw new Error('API error');
     }
 
     const data = await response.json();
-    const reply = Array.isArray(data) ? data[0].generated_text : data.generated_text;
-    
-    const cleanReply = reply
-      .replace(/<s>|\[INST\]|\[\/INST\]/g, '')
-      .replace(/Student:.*$/s, '')
-      .trim();
+    const reply = data.choices?.[0]?.message?.content || "I'm thinking...";
 
-    res.status(200).json({ reply: cleanReply });
+    res.status(200).json({ reply });
 
   } catch (error) {
     console.error('Chatbot error:', error);
